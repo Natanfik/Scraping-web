@@ -1,0 +1,11 @@
+
+
+Tabela de Embarcações: Desenvolvi uma tabela que mostra a direção das embarcações (chegada ou saída), junto com a data e hora correspondentes. A tabela também concatena as informações dos portos e do navio que realiza a rota, proporcionando uma visão completa das operações.
+
+Gráficos: O projeto inclui dois gráficos para facilitar a análise dos dados:
+
+Um gráfico de barras que ilustra o número de barcos chegando e saindo dos portos por hora, ajudando a entender melhor os picos de tráfego marítimo.
+Um gráfico de pizza que compara o tráfego entre os portos, mostrando qual porto apresenta mais movimentação de entregas e saídas.
+
+ideia para continuar a desenvolver:
+Previsão Meteorológica: Implementei uma função para buscar e exibir previsões meteorológicas das regiões dos portos em questão, fornecendo informações úteis para a logística e operação marítima.
