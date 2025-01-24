@@ -43,7 +43,7 @@ def coletar_dados_clima_e_movimentacao(url, porto_nome):
     # Retorna os dados como um DataFrame do pandas
     return pd.DataFrame(dados)
 
-# Exemplo de uso
+# link dados clima
 url = "https://www.myshiptracking.com/ports/port-of-santos-in-br-brazil-id-369"
 porto_nome = "Porto Exemplo"
 dados_clima = coletar_dados_clima_e_movimentacao(url, porto_nome)
