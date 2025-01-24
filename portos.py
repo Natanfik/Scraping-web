@@ -244,10 +244,7 @@ salvar_dados_volume(dados_extras)
 # Confirmar as alterações no banco de dados
 conn.commit()
 
-cursor = conn.cursor()
-# Consultar os dados reais para substituição
-
-# Confirmar as alterações no banco de dados
+cursor = conn.cursor() 
 
 # Consultar os dados reais para substituição
 movimentacao_df = pd.read_sql_query("SELECT * FROM movimentacoes", conn)
