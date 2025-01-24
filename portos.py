@@ -3,38 +3,53 @@ import requests
 from bs4 import BeautifulSoup
 from dash import Dash, dash_table, html, dcc
 import plotly.express as px
+import sqlite3
 import datetime
+from sqlalchemy import create_engine
 
-def coletar_clima(url):
+
+def coletar_dados_clima_e_movimentacao(url, porto_nome):
     response = requests.get(url)
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Localizar os elementos com o id específico para dados climáticos
-        temperatura_elemento = soup.find('span', id='"wob_tm"')
-        chuva_elemento = soup.find('span', id='wob_pp')  
-        umidade_elemento = soup.find('span', id='wob_hm')  
-        vento_elemento = soup.find('span', id='wob_ws')
+    if response.status_code != 200:
+        print(f"Erro ao acessar {url}: {response.status_code}")
+        return pd.DataFrame()
 
-        # Verificar se todos os elementos foram encontrados
-        if temperatura_elemento and chuva_elemento and umidade_elemento and vento_elemento:
-            temperatura = temperatura_elemento.text.strip()
-            chuva = chuva_elemento.text.strip()
-            umidade = umidade_elemento.text.strip()
-            vento = vento_elemento.text.strip()
-            
-            return f"Temperatura: {temperatura}°C, Chuva: {chuva}, Umidade: {umidade}, Vento: {vento}"
-        else:
-            return "Dados de clima não encontrados."
+    soup = BeautifulSoup(response.content, 'html.parser')
+    dados = []
+    
+    # Localiza a tabela no HTML
+    tabela = soup.find('table', class_="table table-sm table-borderless mb-2 w-100")
+    if tabela:
+        # Itera pelas linhas da tabela
+        for linha in tabela.find_all('tr'):
+            colunas = linha.find_all('td')
+            if colunas and len(colunas) > 1:  # Garante que há pelo menos 2 colunas
+                try:
+                    # Acessa o texto das colunas diretamente
+                    tempo = colunas[0].text.strip()  # Exemplo: primeira coluna
+                    temperatura = colunas[1].text.strip()  # Exemplo: segunda coluna
+
+                    # Adiciona os dados ao array
+                    dados.append({
+                        "Tempo": tempo,
+                        "Temperatura": temperatura,
+                        "Porto": porto_nome,
+                    })
+                except (ValueError, IndexError) as e:
+                    print(f"Erro ao processar linha: {e}")
     else:
-        return f"Erro ao acessar o site: {response.status_code}"
+        print("Tabela não encontrada na página.")
 
-# URL de exemplo para o Porto de Santos
-url_santos = "https://www.google.com/search?q=clima+santos+s%C3%A3o+paulo&sca_esv=439ed1f28d78315f&sxsrf=ADLYWIIRZXiF2_jBwWP0CNFuYw36MrHPXg%3A1730331401352&ei=CcMiZ_maFf-95OUPhP3kuQk&oq=clima+Santos&gs_lp=Egxnd3Mtd2l6LXNlcnAiDGNsaW1hIFNhbnRvcyoCCAEyCBAAGIAEGLEDMgUQABiABDIFEAAYgAQyBRAAGIAEMgUQABiABDIFEAAYgAQyBRAAGIAEMgUQABiABDIFEAAYgAQyBRAAGIAESKwqULYKWLMXcAF4AZABAJgBiQGgAesGqgEDMC43uAEByAEA-AEBmAIIoAKaB8ICChAAGLADGNYEGEfCAg0QABiABBiwAxhDGIoFwgIREC4YgAQYsQMY0QMYxwEYyQPCAgsQABiABBiSAxiKBcICCxAAGIAEGLEDGIMBwgIKEAAYgAQYRhiAAsICFhAAGIAEGEYYgAIYlwUYjAUY3QTYAQGYAwCIBgGQBgq6BgYIARABGBOSBwMxLjegB78r&sclient=gws-wiz-serp"
-print(coletar_clima(url_santos))
+    # Retorna os dados como um DataFrame do pandas
+    return pd.DataFrame(dados)
+
+# Exemplo de uso
+url = "https://www.myshiptracking.com/ports/port-of-santos-in-br-brazil-id-369"
+porto_nome = "Porto Exemplo"
+dados_clima = coletar_dados_clima_e_movimentacao(url, porto_nome)
+print(dados_clima)
 
 
-# Função para buscar data atual do dia
 def gerar_url_dia_atual(porto_id):
     data_atual = datetime.datetime.now()
     inicio_dia = int(datetime.datetime(data_atual.year, data_atual.month, data_atual.day, 0, 0).timestamp())
@@ -88,8 +103,7 @@ def coletar_dados_extras(url_dwt, porto_nome):
 
     soup = BeautifulSoup(response.content, 'html.parser')
     dados_porto = []
-    aux = []
-
+  
     tabela = soup.find('table')
     if tabela:
         for linha in tabela.find_all('tr'):
@@ -103,24 +117,6 @@ def coletar_dados_extras(url_dwt, porto_nome):
                     porta = porto_nome
                     navio = colunas[0].text.strip() if len(colunas) > 0 else 'Não informado'
 
-                    aux.append({
-                        "DWT": dwt,
-                    })
-                    print(aux)
-                    soma_dwt = 0
-
-                    # Agora, vamos somar todos os valores de "DWT" (ignorando os 'Não informado')
-                    for item in aux:
-                        try:
-                            # Converter "DWT" para float se for um número válido
-                            dwt_value = float(item["DWT"]) if item["DWT"] != 'Não informado' else 0
-                            soma_dwt += dwt_value
-                        except ValueError:
-                            # Caso não seja possível converter, ignoramos essa linha
-                            continue
-
-                        print(f"Soma total de DWT: {soma_dwt}") 
-
                     dados_porto.append({
                         "DWT": dwt,
                         "Tamanho": tamanho,
@@ -129,7 +125,6 @@ def coletar_dados_extras(url_dwt, porto_nome):
                         "Porto": porta,
                         "Navio": navio,
                         
-
                     })
                 except (ValueError, IndexError) as e:
                     print(f"Erro ao processar linha: {e}")
@@ -184,6 +179,91 @@ movimentacao_partida = dados[dados['Sentido'] == 'partida'].groupby('Navio').siz
 fig_chegada = px.bar(movimentacao_chegada, x='Movimentacao', y='Navio', orientation='h', title="Movimentação de Chegadas por Navio")
 fig_partida = px.bar(movimentacao_partida, x='Movimentacao', y='Navio', orientation='h', title="Movimentação de Partidas por Navio")
 
+
+# Conexão com o banco de dados SQLite (ou crie o banco, se não existir)
+conn = sqlite3.connect("portos.db")
+
+# Criar tabelas (executado apenas uma vez para criar a estrutura do banco)
+def criar_tabelas():
+    with conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS movimentacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tempo TEXT,
+                sentido TEXT,
+                porto TEXT,
+                navio TEXT,
+                hora INTEGER,
+                data_coleta DATE
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS volume (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                dwt TEXT,
+                tamanho TEXT,
+                grt TEXT,
+                chegado TEXT,
+                porto TEXT,
+                navio TEXT,
+                data_coleta DATE
+            );
+        """)
+
+# Chamada para criar as tabelas
+criar_tabelas()
+
+# Salvar dados de movimentação no banco
+def salvar_dados_movimentacao(dados):
+    try:
+        if not dados.empty:
+            dados['data_coleta'] = datetime.date.today()
+            dados.to_sql('movimentacoes', conn, if_exists='append', index=False)
+            print("Dados de movimentacao salvos com sucesso!")
+        else:
+            print("Nenhum dado de movimentacao para salvar.")
+    except Exception as e:
+        print(f"Erro ao salvar dados de movimentacao: {e}")
+
+# Salvar dados de volume no banco
+def salvar_dados_volume(dados_extras):
+    try:
+        if not dados_extras.empty:
+            dados_extras['data_coleta'] = datetime.date.today()
+            dados_extras.to_sql('volume', conn, if_exists='append', index=False)
+            print("Dados de volume salvos com sucesso!")
+        else:
+            print("Nenhum dado de volume para salvar.")
+    except Exception as e:
+        print(f"Erro ao salvar dados de volume: {e}")
+
+# Simular coleta de dados para teste (substituir por funções reais de scraping)
+
+# Salvar os dados no banco de dados
+salvar_dados_movimentacao(dados)
+salvar_dados_volume(dados_extras)
+
+# Confirmar as alterações no banco de dados
+conn.commit()
+
+cursor = conn.cursor()
+# Consultar os dados reais para substituição
+
+# Confirmar as alterações no banco de dados
+
+# Consultar os dados reais para substituição
+movimentacao_df = pd.read_sql_query("SELECT * FROM movimentacoes", conn)
+volume_df = pd.read_sql_query("SELECT * FROM volume", conn)
+
+# Exibir os dados para verificar
+print("Dados de Movimentação:")
+print(movimentacao_df)
+print("\nDados de Volume:")
+print(volume_df)
+
+# Fechar a conexão
+conn.close()
+
 # Configura o Dash
 app = Dash(__name__)
 
@@ -195,6 +275,15 @@ app.layout = html.Div(style={
     
         # Divisão principal com duas colunas
         # Tabela
+        html.Div(dash_table.DataTable(
+            data=dados_clima.to_dict("records"),
+            columns=[{"name": i, "id": i} for i in dados_clima.columns],
+            page_size=1,
+            style_table={'overflowX': 'auto', 'border': 'thin lightgrey solid', 'borderRadius': '8px'},
+            style_cell={'textAlign': 'center', 'padding': '5px', 'border': '1px solid #ddd', 'fontSize': '12px'},
+            style_header={'backgroundColor': '#120a8f', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '14px'},
+            style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#f9f9f9'}]
+        ), style={'borderRadius': '8px', 'boxShadow': '0px 4px 10px rgba(0, 0, 0, 0.1)', 'marginTop': '20px', 'width': '465px'}),
         html.Div(dash_table.DataTable(
             data=dados.to_dict("records"),
             columns=[{"name": i, "id": i} for i in dados.columns],
