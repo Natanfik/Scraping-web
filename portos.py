@@ -237,8 +237,6 @@ def salvar_dados_volume(dados_extras):
     except Exception as e:
         print(f"Erro ao salvar dados de volume: {e}")
 
-# Simular coleta de dados para teste (substituir por funções reais de scraping)
-
 # Salvar os dados no banco de dados
 salvar_dados_movimentacao(dados)
 salvar_dados_volume(dados_extras)
